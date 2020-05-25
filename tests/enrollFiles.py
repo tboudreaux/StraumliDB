@@ -8,4 +8,4 @@ N1 = os.path.join(Dataroot, '20180516_N1')
 
 if __name__ == "__main__":
     client = connect.connect_2_server('127.0.0.1')
-    enroll.enroll_fits_directory(client.Astro, 'Test_Project', N1)
+    enroll.enroll_fits_directory(client.Astro, 'Test_Project', Dataroot, recursive=True)

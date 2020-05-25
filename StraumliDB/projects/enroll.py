@@ -23,16 +23,18 @@ def enroll_project(db, projectName, projectInfo):
     return project
 
 def enroll_fits(db, projectName, path):
+    print(path)
     assert os.path.exists(path)
     if misc.check_for_enrolled_file(db, projectName, path):
         raise ValueError(f'File at {path} is already enrolled in project')
+    else:
+        print(f"Enrolling {path}")
 
     with fits.open(path) as hdul:
         header = hdul[0].header
     header = dict(header)
     header['filePath'] = path
     header['md5sum'] = misc.hash_file(path)
-    # print(header)
     del(header['COMMENT']) # TODO figure out why the comment field needs to be dropped
     db[projectName].insert_one(header)
 
@@ -41,13 +43,14 @@ def enroll_fits_directory(db, projectName, path, recursive=False,
     isValidFits =  lambda x: x.endswith('.fits') and not x.startswith('.')
 
     fitsFiles = filter(isValidFits, os.listdir(path))
-    fitsPaths = map(lambda x: os.path.join(path, x), fitsFiles)
+    fitsPaths = list(map(lambda x: os.path.join(path, x), fitsFiles))
 
     if recursive:
-        for root, dirs, files in os.path.walk(path):
+        for root, dirs, files in os.walk(path):
             subDirFiles = filter(isValidFits, files)
-            subDirPaths = map(lambda x: os.path.join(root, x), subDirFiles)
-            fitsPaths.chain(fitsPaths, subDirPath)
+            subDirPaths = list(map(lambda x: os.path.join(root, x), subDirFiles))
+            # fitsPaths = itertools.chain(fitsPaths, subDirPaths)
+            fitsPaths.extend(subDirPaths)
 
     for fitsPath in fitsPaths:
         try:
