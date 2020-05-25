@@ -23,7 +23,6 @@ def enroll_project(db, projectName, projectInfo):
     return project
 
 def enroll_fits(db, projectName, path):
-    print(path)
     assert os.path.exists(path)
     if misc.check_for_enrolled_file(db, projectName, path):
         raise ValueError(f'File at {path} is already enrolled in project')
@@ -35,7 +34,11 @@ def enroll_fits(db, projectName, path):
     header = dict(header)
     header['filePath'] = path
     header['md5sum'] = misc.hash_file(path)
-    del(header['COMMENT']) # TODO figure out why the comment field needs to be dropped
+    header['COMMENT'] = str(header['COMMENT'])
+
+    if '' in header:
+        del(header[''])
+
     db[projectName].insert_one(header)
 
 def enroll_fits_directory(db, projectName, path, recursive=False,
