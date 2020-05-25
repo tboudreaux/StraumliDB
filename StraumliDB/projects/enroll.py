@@ -3,6 +3,7 @@ from StraumliDB.utils import misc
 import itertools
 from astropy.io import fits
 import os
+import warnings
 
 def enroll_project(db, projectName, projectInfo):
     assert isinstance(projectInfo, dict)
@@ -32,8 +33,6 @@ def enroll_fits(db, projectName, path):
     header['filePath'] = path
     header['md5sum'] = misc.hash_file(path)
     # print(header)
-    for key in header:
-        print(f"{key}: {header[key]}")
     del(header['COMMENT']) # TODO figure out why the comment field needs to be dropped
     db[projectName].insert_one(header)
 
@@ -51,4 +50,12 @@ def enroll_fits_directory(db, projectName, path, recursive=False,
             fitsPaths.chain(fitsPaths, subDirPath)
 
     for fitsPath in fitsPaths:
-        enroll_fits(db, projectName, fitsPath)
+        try:
+            enroll_fits(db, projectName, fitsPath)
+        except ValueError as e:
+            if not ignore_duplicates:
+                raise
+            else:
+               warnings.warn(
+                       f'File {fitsPath} Already enrolled in Project, skipping',
+                       Warning)
