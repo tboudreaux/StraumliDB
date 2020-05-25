@@ -1,0 +1,95 @@
+Goal: Create a modular database system which can be used to store and retrive large amounts of astronomical data
+
+
+Exmaple of usage case:
+	- There is some directory with fits files, VOTables, and CSV. The CSVs have a comment lines denoted with &s then you could do the following
+	- Assuming you have entered that directory
+
+
+	- $ astroCoreDB project create --name "TestProject"
+	- $ astroCoreDB project connect TestProject
+	- $ astroCoreDB project enroll *.fits
+	- $ astroCoreDB project enroll *.VO
+	
+	- here because fits files and VO tables are assumed to be pretty standard the default reader knows how to enroll that data into the database. However lets say you also have some file which is non standard, perhapse it is formated as so
+
+		file.txt:
+			# Data from nbody simulation
+			# Taken on 06/07/1982
+			# pn,m,    x,y,  z, vx, vy,vz
+			# , kg, m,m,m, m/s, m/s, m/s
+			1, 1, 0, 0, 0, 1, 0, 0
+			2, 1, 1, 1, 1, 0, 0, 0
+
+	- you could then write the following
+	
+		enrollCustom.py:
+			import astroCoreDB
+	
+			DB = astroCoreDB.connect(URI)
+	
+			p = DB.project_connect("TestProject")
+
+			with open("file.txt", 'r') as f:
+				lines = f.readlines()
+
+			comments = [x for x in lines if x[0] == '#']
+	
+			header = comments[2].strip('#').lstrip().rstrip()
+			header = [x.lstrip().rstrip() for x in header.split(',')]
+
+
+			lines = [x.split(',') for x in lines if x[0] != '#']
+			
+			data = dict()
+			for field in header:
+				data[field] = list()
+			for line in lines:
+				for field, element in zip(header, line):
+					data[field].append(float(element.lstrip().rstrip()))
+
+			p.dict_enroll(data)
+
+	- then 
+	- $ python enrollCustom.py
+	- and that file would be enrolled in the data base
+
+	- This is a very simple example but the goal would be to have a general API which would allow any kinds of files to be enrolled in whatever way the reasercher deams most useful to their reaserch.
+
+
+	- The next useful part of this is the data access.
+		- Because this would be running in a database server it is trivial to allow remote access of the same data, just connect to the correct URI
+
+		- The API in the command line might look something like
+
+		- $ astroCoreDB project connect TestProject
+		- $ astroCoreDB project select --extension fits --list
+
+			= n1/b0001.fits, n1/b0002.fits, n1/r0001.fits, n1/r0002.fits, n2/b0001.fits
+		- $ astroCoreDB project select --extension fits --field OBJECT
+			
+			= bias, thar, thar, highvsini
+
+		- $ astroCoreDB project pull --filename n1/b0001.fits -o . 
+			- This would then download a local copy of the file n1/b0001.fits
+
+
+		- or in python the API migth look like
+			access.py:
+				import astroCoreDB
+
+				DB = astroCoreDB.connect(URI)
+
+				p = DB.project_connect("TestProject")
+
+				testFile = p.select(filename="n1/b0001.fits")
+				allFits = p.select_all(ext="fits")
+
+				allFitsHeaders = p.select_all(ext="fits", fields="HEADER")
+
+				specificOrder = p.select(filename="n1/b0001.fits", field="Data", dim=(0, 0, 0))
+
+		- This is just a general idea of what a useful API might look like
+
+
+	- I would probably build this on MongoDB for its felxibiltiy
